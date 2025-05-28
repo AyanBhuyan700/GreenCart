@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit&display=swap');
+@import "tailwindcss";
+
+* {
+    font-family: Outfit;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
+.active {
+    background-color: #edf8f3;
+    border-color: #4fbf8b;
+}
+
+html {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
