@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+* {
+    font-family: 'Outfit', sans-serif;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
+html {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
