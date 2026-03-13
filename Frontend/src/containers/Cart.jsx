@@ -33,7 +33,7 @@ function Cart() {
                         id,
                         ...product,
                         quantity: cartItem[id],
-                        subtotal: cartItem[id] * product.price,
+                        subtotal: cartItem[id] * product.offerPrice,
                     };
                 })
             );

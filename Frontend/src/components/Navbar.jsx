@@ -5,14 +5,22 @@ import { ShopContext } from "../context/ShopContext";
 function Navbar() {
     const url = "https://green-cart-admin.vercel.app/AdminLogin";
     const token = localStorage.getItem("token");
-    const { getCartCount } = useContext(ShopContext);
+    const { getCartCount, products } = useContext(ShopContext);
     const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [search, setSearch] = useState("");
 
     const handleLogout = () => {
         localStorage.removeItem("token");
         navigate("/login");
     };
+
+    const handleSearch = (e) => {
+        if (e.key === "Enter") {
+            navigate(`/allproduct?search=${search}`);
+        }
+    };
+
 
     return (
         <>
@@ -31,7 +39,7 @@ function Navbar() {
                     <Link to={"/allproduct"} className="text-[#364153] text-base">All Product</Link>
 
                     <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 rounded-full">
-                        <input className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500" placeholder="Search products" type="text" />
+                        <input className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500" placeholder="Search products" type="text" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={handleSearch} />
                         <img className="w-4 h-4" alt="search" src="/images/search.svg" />
                     </div>
 
