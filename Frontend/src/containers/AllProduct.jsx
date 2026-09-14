@@ -1,12 +1,25 @@
 import React, { useContext, useEffect } from "react";
 import Footer from "../components/Footer";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Loader from "../components/Loader";
 import { ShopContext } from "../context/ShopContext";
+import toastr from "toastr";
+import "toastr/build/toastr.min.css";
 
 function AllProduct() {
-  const { getProducts, products, loading, addToCart } = useContext(ShopContext);
+  const navigate = useNavigate();
+  const { getProducts, products, loading, addToCart, token } = useContext(ShopContext);
   const location = useLocation();
+
+  const handleAddToCart = async (itemId) => {
+    const currentToken = token || localStorage.getItem("token");
+    if (!currentToken) {
+      toastr.warning("Please login to add products to your cart", "Login Required");
+      navigate("/login");
+      return;
+    }
+    await addToCart(itemId);
+  };
 
   const searchParam = new URLSearchParams(location.search).get("search")?.trim().toLowerCase() || "";
   const displayedProducts = searchParam
@@ -82,7 +95,7 @@ function AllProduct() {
                         <div className="text-[#4fbf8b]">
                           <button
                             className="flex items-center cursor-pointer justify-center gap-1 bg-[#4fbf8b]/10 border border-[#4fbf8b]/40 px-2 md:w-20 w-16 h-8.5 rounded"
-                            onClick={() => addToCart(item._id)}
+                            onClick={() => handleAddToCart(item._id)}
                           >
                             <img
                               className="w-3.5"
