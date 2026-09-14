@@ -9,6 +9,7 @@ import Register from "./containers/Register";
 import ViewProduct from "./containers/ViewProduct";
 import Categories from "./containers/Categories";
 import Cart from "./containers/Cart";
+import Orders from "./containers/Orders";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/orders" element={<Orders />} />
           <Route path="/product/:id" element={<ViewProduct />} />
           <Route path="/categories/:category" element={<Categories />} />
         </Routes>
