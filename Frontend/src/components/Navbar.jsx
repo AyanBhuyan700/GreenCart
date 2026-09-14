@@ -3,15 +3,23 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShopContext } from "../context/ShopContext";
 
 function Navbar() {
-    const url = "https://green-cart-admin.vercel.app/AdminLogin";
+    const url = window.location.hostname === "localhost"
+        ? "http://localhost:5174/order"
+        : "https://green-cart-admin.vercel.app/AdminLogin";
     const token = localStorage.getItem("token");
-    const { getCartCount, products } = useContext(ShopContext);
+    const { getCartCount, products, role, setRole } = useContext(ShopContext);
     const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
     const [search, setSearch] = useState("");
 
+    const currentRole = role || localStorage.getItem("role") || "user";
+    const isAdmin = currentRole === "admin" || localStorage.getItem("isAdmin") === "true";
+
     const handleLogout = () => {
         localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("isAdmin");
+        if (setRole) setRole("user");
         navigate("/login");
     };
 
@@ -34,7 +42,9 @@ function Navbar() {
                 </button>
 
                 <div className="hidden md:flex items-center gap-6">
-                    <Link to={url} target="_blank" className="border border-gray-300 px-3 py-1 rounded-full text-xs opacity-80">Seller Dashboard</Link>
+                    {isAdmin && (
+                        <Link to={url} target="_blank" className="border border-gray-300 px-3 py-1 rounded-full text-xs opacity-80 hover:bg-gray-50 transition">Seller Dashboard</Link>
+                    )}
                     <Link to={"/"} className="text-[#364153] text-base font-medium">Home</Link>
                     <Link to={"/allproduct"} className="text-[#364153] text-base">All Product</Link>
 
@@ -57,19 +67,26 @@ function Navbar() {
                             onClick={() => !token && navigate("/login")}
                             alt="profile"
                         />
-                        {token && (
-                            <ul className="hidden group-hover:block absolute top-10 right-0 bg-white shadow border border-gray-200 py-2.5 w-30 rounded-md text-sm z-40">
-                                <li className="p-1.5 pl-3 hover:bg-[#edf8f3] cursor-pointer">My Orders</li>
+                        <ul className="hidden group-hover:block absolute top-10 right-0 bg-white shadow border border-gray-200 py-2.5 w-32 rounded-md text-sm z-40">
+                            {isAdmin && (
+                                <li className="p-1.5 pl-3 hover:bg-[#edf8f3] cursor-pointer text-[#4fbf8b] font-medium" onClick={() => window.open(url, "_blank")}>Seller Dashboard</li>
+                            )}
+                            <li className="p-1.5 pl-3 hover:bg-[#edf8f3] cursor-pointer" onClick={() => navigate("/orders")}>My Orders</li>
+                            {token ? (
                                 <li className="p-1.5 pl-3 hover:bg-[#edf8f3] cursor-pointer" onClick={handleLogout}>Logout</li>
-                            </ul>
-                        )}
+                            ) : (
+                                <li className="p-1.5 pl-3 hover:bg-[#edf8f3] cursor-pointer" onClick={() => navigate("/login")}>Login</li>
+                            )}
+                        </ul>
                     </div>
                 </div>
             </div>
 
             {menuOpen && (
                 <div className="md:hidden px-6 py-4 space-y-4 bg-white border-b border-gray-300">
-                    <Link to={url} target="_blank" className="block border border-gray-300 px-3 py-1 rounded-full text-xs opacity-80">Seller Dashboard</Link>
+                    {isAdmin && (
+                        <Link to={url} target="_blank" className="block border border-gray-300 px-3 py-1 rounded-full text-xs opacity-80 w-fit">Seller Dashboard</Link>
+                    )}
                     <Link to={"/"} className="block text-[#364153] text-base font-medium">Home</Link>
                     <Link to={"/allproduct"} className="block text-[#364153] text-base">All Product</Link>
                     <Link to="/cart" className="flex items-center gap-2">
@@ -88,22 +105,49 @@ function Navbar() {
                         />
                     </div>
 
-                    {token && (
-                        <div className="flex flex-col gap-2 text-sm pl-10">
+                    <div className="flex flex-col gap-2 text-sm pl-4 pt-2 border-t border-gray-100">
+                        {isAdmin && (
                             <button
-                                onClick={() => navigate("/orders")}
-                                className="text-left hover:text-[#4fbf8b] transition"
+                                onClick={() => {
+                                    setMenuOpen(false);
+                                    window.open(url, "_blank");
+                                }}
+                                className="text-left text-[#4fbf8b] font-medium"
                             >
-                                My Orders
+                                Seller Dashboard
                             </button>
+                        )}
+                        <button
+                            onClick={() => {
+                                setMenuOpen(false);
+                                navigate("/orders");
+                            }}
+                            className="text-left hover:text-[#4fbf8b] transition font-medium"
+                        >
+                            My Orders
+                        </button>
+                        {token ? (
                             <button
-                                onClick={handleLogout}
-                                className="text-left hover:text-[#4fbf8b] transition"
+                                onClick={() => {
+                                    setMenuOpen(false);
+                                    handleLogout();
+                                }}
+                                className="text-left hover:text-red-500 transition"
                             >
                                 Logout
                             </button>
-                        </div>
-                    )}
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    setMenuOpen(false);
+                                    navigate("/login");
+                                }}
+                                className="text-left hover:text-[#4fbf8b] transition"
+                            >
+                                Login
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
         </>
