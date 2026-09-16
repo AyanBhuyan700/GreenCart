@@ -6,6 +6,7 @@ import connectCloudinary from './config/Cloudinary.js'
 import productRoute from './routes/ProductRoute.js'
 import userRoute from './routes/UserRoute.js'
 import cartRoute from './routes/CartRoute.js'
+import orderRoute from './routes/OrderRoute.js'
 dotenv.config()
 const app = express()
 
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 app.use('/api/product', productRoute)
 app.use('/api/user', userRoute)
 app.use('/api/cart', cartRoute)
+app.use('/api/order', orderRoute)
 
 mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
