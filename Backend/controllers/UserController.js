@@ -54,12 +54,18 @@ export const loginUser = async (req, res) => {
         }
 
         const token = generateToken(user);
+        const role = user.role || (email === process.env.ADMIN_EMAIL || email === "admin@greencart.com" ? "admin" : "user");
 
         res.cookie("token", token, {
             httpOnly: true,
             sameSite: "Strict",
         });
-        res.status(201).json({ message: "Login successful", token });
+        res.status(201).json({
+            message: "Login successful",
+            token,
+            role,
+            user: { id: user._id, username: user.username, email: user.email, role }
+        });
     } catch (error) {
         return res.status(500).json({ message: "Server error, please try again" });
     }
