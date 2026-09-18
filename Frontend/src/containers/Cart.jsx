@@ -235,7 +235,6 @@ function Cart() {
                                         title="Remove item"
                                     >
                                         <img className="w-6 h-6" alt="Remove item" src="/images/cross.svg" onError={(e) => { e.target.style.display = 'none'; }} />
-                                        <span className="text-gray-400 hover:text-red-500 text-lg font-bold">×</span>
                                     </button>
                                 </div>
                             ))
