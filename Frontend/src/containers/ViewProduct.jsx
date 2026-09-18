@@ -1,18 +1,39 @@
 import React, { useEffect, useState, useContext } from "react";
 import { ShopContext } from "../context/ShopContext";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 import toastr from "toastr";
 import "toastr/build/toastr.min.css";
 
 function ViewProduct() {
+  const navigate = useNavigate();
   const { id, category } = useParams();
-  const { viewProduct, getProductByCategory, addToCart } = useContext(ShopContext);
+  const { viewProduct, getProductByCategory, addToCart, token } = useContext(ShopContext);
   const [product, setProduct] = useState(null);
 
-  function handleOrder() {
-    toastr.info("Currently not available");
-  }
+  const handleBuyNow = async () => {
+    if (!product || !product.inStock) return;
+    const currentToken = token || localStorage.getItem("token");
+    if (!currentToken) {
+      toastr.warning("Please login to purchase products", "Login Required");
+      navigate("/login");
+      return;
+    }
+    const added = await addToCart(product._id);
+    if (added) {
+      navigate("/cart");
+    }
+  };
+
+  const handleAddToCart = async () => {
+    const currentToken = token || localStorage.getItem("token");
+    if (!currentToken) {
+      toastr.warning("Please login to add products to your cart", "Login Required");
+      navigate("/login");
+      return;
+    }
+    await addToCart(product._id);
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -104,7 +125,7 @@ function ViewProduct() {
                         : "cursor-not-allowed bg-gray-300 text-gray-500"
                         }`}
                       disabled={!product.inStock}
-                      onClick={() => addToCart(product._id)}
+                      onClick={handleAddToCart}
                     >
                       Add to Cart
                     </button>
@@ -114,7 +135,7 @@ function ViewProduct() {
                         : "cursor-not-allowed bg-gray-300 text-gray-500"
                         }`}
                       disabled={!product.inStock}
-                      onClick={handleOrder}
+                      onClick={handleBuyNow}
                     >
                       Buy Now
                     </button>
