@@ -2,13 +2,16 @@ import User from '../models/UserModel.js'
 
 export const addToCart = async (req, res) => {
     try {
-        const { userId, itemId } = req.body;
+        const userId = req.userId || req.body.userId;
+        const { itemId } = req.body;
 
         const userData = await User.findById(userId);
+        if (!userData) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
         let cartData = userData.cartData || {};
 
         cartData[itemId] = (cartData[itemId] || 0) + 1;
-
 
         await User.findByIdAndUpdate(userId, { cartData });
 
@@ -21,9 +24,13 @@ export const addToCart = async (req, res) => {
 
 export const updateCart = async (req, res) => {
     try {
-        const { userId, itemId, quantity } = req.body;
+        const userId = req.userId || req.body.userId;
+        const { itemId, quantity } = req.body;
 
         const userData = await User.findById(userId);
+        if (!userData) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
         let cartData = userData.cartData || {};
 
         if (quantity <= 0) {
@@ -42,9 +49,12 @@ export const updateCart = async (req, res) => {
 
 export const getUserCart = async (req, res) => {
     try {
-        const { userId } = req.body;
+        const userId = req.userId || req.body.userId;
 
         const userData = await User.findById(userId);
+        if (!userData) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
         const cartData = userData.cartData || {};
 
         res.json({ success: true, cartData });
@@ -55,9 +65,13 @@ export const getUserCart = async (req, res) => {
 
 export const removeCartItem = async (req, res) => {
     try {
-        const { userId, itemId } = req.body;
+        const userId = req.userId || req.body.userId;
+        const { itemId } = req.body;
 
         const userData = await User.findById(userId);
+        if (!userData) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
         let cartData = userData.cartData || {};
 
         if (cartData[itemId]) {
