@@ -4,25 +4,31 @@ import User from '../models/UserModel.js';
 // Placing orders using COD or Online Payment
 export const placeOrder = async (req, res) => {
     try {
-        const { userId, items, amount, address, paymentMethod, paymentStatus, transactionId, orderId } = req.body;
+        const userId = req.userId || req.body.userId;
+        const { items, amount, address, paymentMethod, paymentStatus, transactionId } = req.body;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ success: false, message: "Order must contain at least one item." });
+        }
 
         const newOrder = new Order({
-            _id: orderId ? undefined : undefined,
             userId,
             items,
-            amount,
-            address,
-            paymentMethod,
+            amount: Number(amount) || 0,
+            address: address || {},
+            paymentMethod: paymentMethod || "COD",
             payment: paymentStatus === "Paid" || paymentMethod === "Online",
             transactionId: transactionId || null,
             status: "Order Placed",
-            date: Date.now()
+            date: new Date()
         });
 
         await newOrder.save();
 
         // Clear user's cartData in database
-        await User.findByIdAndUpdate(userId, { cartData: {} });
+        if (userId) {
+            await User.findByIdAndUpdate(userId, { cartData: {} });
+        }
 
         res.json({ success: true, message: "Order placed successfully", order: newOrder });
     } catch (err) {
@@ -34,7 +40,10 @@ export const placeOrder = async (req, res) => {
 // User order history for frontend
 export const userOrders = async (req, res) => {
     try {
-        const { userId } = req.body;
+        const userId = req.userId || req.body.userId;
+        if (!userId) {
+            return res.status(400).json({ success: false, message: "User ID missing" });
+        }
         const orders = await Order.find({ userId }).sort({ createdAt: -1 });
         res.json({ success: true, orders });
     } catch (err) {
