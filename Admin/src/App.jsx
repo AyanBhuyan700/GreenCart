@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Outlet } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate } from "react-router-dom";
 import LoginAdmin from "./containers/LoginAdmin";
 import Navbar from "./components/Navbar";
 import Sidebar from "./containers/Sidebar";
@@ -27,6 +27,7 @@ function App() {
       <Route path="/adminLogin" element={<LoginAdmin />} />
 
       <Route path="/" element={<Layout />}>
+        <Route index element={<Navigate to="/order" replace />} />
         <Route path="add" element={<Add />} />
         <Route path="product" element={<Product />} />
         <Route path="order" element={<Order />} />
