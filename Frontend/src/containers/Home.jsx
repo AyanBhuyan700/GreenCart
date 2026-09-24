@@ -6,16 +6,15 @@ import Footer from "../components/Footer";
 
 function Home() {
     return (
-        <>
-            <div className="px-6 md:px-16 lg:px-24 xl:px-32">
+        <div className="min-h-screen bg-slate-50/50 flex flex-col justify-between">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pb-16">
                 <Hero />
-                <Category/>
-                <Main/>
-            </div>
-                <Footer/>
-
-        </>
-    )
+                <Category />
+                <Main />
+            </main>
+            <Footer />
+        </div>
+    );
 }
 
 export default Home;
