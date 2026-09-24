@@ -10,119 +10,41 @@ function Order() {
     const [statusFilter, setStatusFilter] = useState("All");
     const [searchTerm, setSearchTerm] = useState("");
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent) setLoading(true);
             const token = localStorage.getItem("token");
             const res = await axios.get(`${url}/api/order/list`, {
                 headers: token ? { token } : {}
             });
-            if (res.data.success && Array.isArray(res.data.orders) && res.data.orders.length > 0) {
+            if (res.data.success && Array.isArray(res.data.orders)) {
                 setOrders(res.data.orders);
-                localStorage.setItem("orders", JSON.stringify(res.data.orders));
-                return;
             }
         } catch (err) {
-            console.warn("Backend order fetch fallback to local storage:", err.message);
-        } finally {
-            setLoading(false);
-        }
-
-        // Fallback to local storage (shared with frontend orders)
-        const saved = localStorage.getItem("orders");
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    setOrders(parsed);
-                    return;
-                }
-            } catch (e) {}
-        }
-
-        // Pre-populate sample order if completely empty for demonstration
-        const sampleOrders = [
-            {
-                _id: "ORD" + Math.floor(100000 + Math.random() * 900000),
-                date: new Date(Date.now() - 3600000 * 4).toISOString(),
-                items: [
-                    {
-                        name: "7 Up 1.5L",
-                        quantity: 2,
-                        offerPrice: 70,
-                        image: ["https://res.cloudinary.com/ayanbhuyan/image/upload/v1747479371/cxfffpv6zdqlpol2vbu5.png"],
-                    },
-                    {
-                        name: "Butter Croissant 100g",
-                        quantity: 3,
-                        offerPrice: 25,
-                        image: ["https://res.cloudinary.com/ayanbhuyan/image/upload/v1748427624/metcg5atsfuup05bqy77.png"],
-                    }
-                ],
-                amount: 219.30,
-                address: {
-                    fullName: "Alex Morgan",
-                    phone: "+1 (555) 382-9104",
-                    street: "742 Evergreen Terrace",
-                    city: "Springfield",
-                    state: "OR",
-                    zipCode: "97477",
-                    country: "United States",
-                },
-                paymentMethod: "Online",
-                paymentStatus: "Paid",
-                status: "Order Placed",
-                transactionId: "TXN_SAMPLE99",
-            },
-            {
-                _id: "ORD" + Math.floor(100000 + Math.random() * 900000),
-                date: new Date(Date.now() - 3600000 * 24).toISOString(),
-                items: [
-                    {
-                        name: "Banana 1 kg",
-                        quantity: 2,
-                        offerPrice: 45,
-                        image: ["https://res.cloudinary.com/ayanbhuyan/image/upload/v1747479514/uk4qeqkorbtjubfbaaoc.png"],
-                    },
-                    {
-                        name: "Eggs 12 pcs",
-                        quantity: 1,
-                        offerPrice: 50,
-                        image: ["https://res.cloudinary.com/ayanbhuyan/image/upload/v1748427777/abvxbbrfk0dqh7tunchi.png"],
-                    }
-                ],
-                amount: 142.80,
-                address: {
-                    fullName: "Sarah Jenkins",
-                    phone: "+1 (555) 609-4112",
-                    street: "128 Oak Ridge Lane",
-                    city: "Portland",
-                    state: "OR",
-                    zipCode: "97201",
-                    country: "United States",
-                },
-                paymentMethod: "COD",
-                paymentStatus: "Pending",
-                status: "Packing",
+            console.error("Backend order fetch error:", err.message);
+            if (!silent) {
+                toastr.error("Failed to load orders from database", "Error");
             }
-        ];
-        setOrders(sampleOrders);
-        localStorage.setItem("orders", JSON.stringify(sampleOrders));
+        } finally {
+            if (!silent) setLoading(false);
+        }
     };
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {
-            await axios.post(`${url}/api/order/status`, { orderId, status: newStatus });
+            const res = await axios.post(`${url}/api/order/status`, { orderId, status: newStatus });
+            if (res.data.success) {
+                setOrders((prev) =>
+                    prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
+                );
+                toastr.success(`Order status updated to "${newStatus}"`, "Success");
+            } else {
+                toastr.error(res.data.message || "Failed to update status");
+            }
         } catch (err) {
-            console.warn("Backend status update fallback to local:", err.message);
+            console.error("Status update error:", err);
+            toastr.error("Failed to update status in database", "Error");
         }
-
-        const updated = orders.map((o) =>
-            o._id === orderId ? { ...o, status: newStatus } : o
-        );
-        setOrders(updated);
-        localStorage.setItem("orders", JSON.stringify(updated));
-        toastr.success(`Order #${orderId} updated to "${newStatus}"`, "Success");
     };
 
     const getNextStatusAction = (currentStatus) => {
@@ -156,7 +78,17 @@ function Order() {
     };
 
     useEffect(() => {
+        // Clear any old cached dummy orders in local storage
+        localStorage.removeItem("orders");
+
         fetchOrders();
+
+        // Auto-refresh orders every 5 seconds so new orders reflect automatically
+        const intervalId = setInterval(() => {
+            fetchOrders(true);
+        }, 5000);
+
+        return () => clearInterval(intervalId);
     }, []);
 
     // Filter and search
@@ -193,13 +125,19 @@ function Order() {
                         Track, process, and update customer order fulfillment status
                     </p>
                 </div>
-                <button
-                    onClick={fetchOrders}
-                    className="flex items-center gap-2 bg-[#4fbf8b] hover:bg-[#44ae7c] text-white px-4 py-2 rounded text-sm font-medium transition cursor-pointer shadow-sm w-fit"
-                >
-                    <span className={loading ? "animate-spin" : ""}>↻</span>
-                    Refresh Orders
-                </button>
+                <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Live DB Sync
+                    </span>
+                    <button
+                        onClick={() => fetchOrders(false)}
+                        className="flex items-center gap-2 bg-[#4fbf8b] hover:bg-[#44ae7c] text-white px-4 py-2 rounded text-sm font-medium transition cursor-pointer shadow-sm w-fit"
+                    >
+                        <span className={loading ? "animate-spin" : ""}>↻</span>
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {/* KPI Metric Cards */}
