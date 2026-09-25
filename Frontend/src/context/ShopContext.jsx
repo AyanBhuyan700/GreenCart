@@ -15,16 +15,14 @@ const ShopContextProvider = (props) => {
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(() => localStorage.getItem("role") || "user");
 
-  const [cartItem, setCartItem] = useState(() => {
-    const savedCart = localStorage.getItem("cart");
-    return savedCart ? JSON.parse(savedCart) : {};
-  });
+  // Cart items are managed in state and persisted directly to the database via API, NOT stored in localStorage
+  const [cartItem, setCartItem] = useState({});
 
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cartItem));
-  }, [cartItem]);
+    // Clear any obsolete legacy local storage items
+    localStorage.removeItem("cart");
+    localStorage.removeItem("orders");
 
-  useEffect(() => {
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
       setToken(storedToken);
@@ -36,8 +34,10 @@ const ShopContextProvider = (props) => {
   }, []);
 
   useEffect(() => {
-    if (token) {
+    const activeToken = token || localStorage.getItem("token");
+    if (activeToken) {
       getUserCart();
+      getUserOrders();
     }
   }, [token]);
 
@@ -115,9 +115,10 @@ const ShopContextProvider = (props) => {
 
     setCartItem(updatedCart);
 
-    if (token) {
+    const activeToken = token || localStorage.getItem("token");
+    if (activeToken) {
       try {
-        await axios.put(`${url}/api/cart/update`, { itemId, quantity }, { headers: { token } });
+        await axios.put(`${url}/api/cart/update`, { itemId, quantity }, { headers: { token: activeToken } });
       } catch (err) {
         toastr.error(err.response?.data?.message);
       }
@@ -125,10 +126,11 @@ const ShopContextProvider = (props) => {
   };
 
   const getUserCart = async () => {
-    if (!token) return;
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) return;
     try {
-      const response = await axios.get(`${url}/api/cart/get`, { headers: { token } });
-      if (response.data.success) {
+      const response = await axios.get(`${url}/api/cart/get`, { headers: { token: activeToken } });
+      if (response.data.success && response.data.cartData) {
         setCartItem(response.data.cartData);
       }
     } catch (err) {
@@ -143,11 +145,12 @@ const ShopContextProvider = (props) => {
     delete updatedCart[itemId];
     setCartItem(updatedCart);
 
-    if (token) {
+    const activeToken = token || localStorage.getItem("token");
+    if (activeToken) {
       try {
         await axios.delete(`${url}/api/cart/remove`, {
           data: { itemId },
-          headers: { token },
+          headers: { token: activeToken },
         });
         toastr.success("Item removed from cart");
       } catch (err) {
@@ -156,10 +159,8 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem("orders");
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Orders are stored directly in MongoDB database, NOT in localStorage
+  const [orders, setOrders] = useState([]);
 
   const [deliveryAddress, setDeliveryAddress] = useState(() => {
     const saved = localStorage.getItem("deliveryAddress");
@@ -181,7 +182,6 @@ const ShopContextProvider = (props) => {
 
   const clearCart = async () => {
     setCartItem({});
-    localStorage.removeItem("cart");
   };
 
   const updateDeliveryAddress = (address) => {
@@ -189,52 +189,87 @@ const ShopContextProvider = (props) => {
     localStorage.setItem("deliveryAddress", JSON.stringify(address));
   };
 
+  // Place order directly into MongoDB database
   const placeOrder = async (orderData) => {
-    const newOrder = {
-      _id: "ORD" + Math.floor(100000 + Math.random() * 900000),
-      date: new Date().toISOString(),
-      items: orderData.items,
-      amount: orderData.amount,
-      address: orderData.address,
-      paymentMethod: orderData.paymentMethod,
-      paymentStatus: orderData.paymentStatus || (orderData.paymentMethod === "Online" ? "Paid" : "Pending"),
-      status: "Order Placed",
-      transactionId: orderData.transactionId || (orderData.paymentMethod === "Online" ? "TXN" + Date.now() : null),
-    };
-
-    if (token) {
-      try {
-        await axios.post(
-          `${url}/api/order/place`,
-          { ...orderData, orderId: newOrder._id },
-          { headers: { token } }
-        );
-      } catch (err) {
-        console.warn("Backend order sync note:", err.message);
-      }
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) {
+      toastr.warning("Please login to place an order.", "Login Required");
+      throw new Error("Login required");
     }
 
-    const updatedOrders = [newOrder, ...orders];
-    setOrders(updatedOrders);
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
-    await clearCart();
-    return newOrder;
+    try {
+      const res = await axios.post(
+        `${url}/api/order/place`,
+        orderData,
+        { headers: { token: activeToken } }
+      );
+
+      if (res.data.success && res.data.order) {
+        setOrders((prev) => [res.data.order, ...prev]);
+        await clearCart();
+        return res.data.order;
+      } else {
+        throw new Error(res.data.message || "Failed to place order");
+      }
+    } catch (err) {
+      console.error("Order placement failed:", err);
+      const errMsg = err.response?.data?.message || err.message || "Order placement failed";
+      toastr.error(errMsg, "Error");
+      throw err;
+    }
   };
 
-  const getUserOrders = async () => {
-    if (token) {
-      try {
-        const res = await axios.get(`${url}/api/order/userorders`, { headers: { token } });
-        if (res.data.success && res.data.orders?.length > 0) {
-          setOrders(res.data.orders);
-          localStorage.setItem("orders", JSON.stringify(res.data.orders));
-          return res.data.orders;
-        }
-      } catch (err) {
-        // Fallback to local
-      }
+  // Instant order for a single product directly into database
+  const instantOrder = async (product, quantity = 1) => {
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) {
+      toastr.warning("Please login to complete your order", "Login Required");
+      return null;
     }
-    return orders;
+    if (!product || !product._id) {
+      toastr.error("Invalid product");
+      return null;
+    }
+
+    const item = {
+      id: product._id,
+      _id: product._id,
+      name: product.name,
+      price: product.price,
+      offerPrice: product.offerPrice,
+      image: product.image,
+      quantity,
+      subtotal: Number(product.offerPrice) * quantity,
+    };
+
+    const orderTotal = Number((item.subtotal * 1.02).toFixed(2));
+    const orderData = {
+      items: [item],
+      amount: orderTotal,
+      address: deliveryAddress,
+      paymentMethod: "COD",
+      paymentStatus: "Pending",
+    };
+
+    const placed = await placeOrder(orderData);
+    toastr.success("Order placed successfully!");
+    return placed;
+  };
+
+  // Fetch orders directly from MongoDB database
+  const getUserOrders = async () => {
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) return [];
+    try {
+      const res = await axios.get(`${url}/api/order/userorders`, { headers: { token: activeToken } });
+      if (res.data.success && Array.isArray(res.data.orders)) {
+        setOrders(res.data.orders);
+        return res.data.orders;
+      }
+    } catch (err) {
+      console.error("User orders fetch error:", err);
+    }
+    return [];
   };
 
   const value = {
@@ -260,6 +295,7 @@ const ShopContextProvider = (props) => {
     orders,
     setOrders,
     placeOrder,
+    instantOrder,
     getUserOrders,
     deliveryAddress,
     updateDeliveryAddress,
