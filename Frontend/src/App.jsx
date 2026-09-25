@@ -10,6 +10,7 @@ import ViewProduct from "./containers/ViewProduct";
 import Categories from "./containers/Categories";
 import Cart from "./containers/Cart";
 import Orders from "./containers/Orders";
+import Profile from "./containers/Profile";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="/deals" element={<Deals />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/product/:id" element={<ViewProduct />} />

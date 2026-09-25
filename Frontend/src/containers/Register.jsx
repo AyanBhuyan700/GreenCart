@@ -1,14 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toastr from "toastr";
 import "toastr/build/toastr.min.css";
 import axios from 'axios';
+import { ShopContext } from "../context/ShopContext";
+import { Loader2, AlertCircle } from "lucide-react";
 
 function Register() {
-    const url = "https://greencart-backend-lf22.onrender.com";
+    const { url, setToken, setRole, setUser, setProfileImage, fetchUserProfile } = useContext(ShopContext);
     const [form, setForm] = useState({ username: "", email: "", password: "" });
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [takingLonger, setTakingLonger] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        let timer;
+        if (isLoading) {
+            timer = setTimeout(() => {
+                setTakingLonger(true);
+            }, 2500);
+        } else {
+            setTakingLonger(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isLoading]);
 
     const changeHandler = (e) => {
         setForm((prevForm) => ({
@@ -18,73 +34,130 @@ function Register() {
     };
 
     async function registerUser() {
+        setIsLoading(true);
+        setTakingLonger(false);
         try {
             const response = await axios.post(`${url}/api/user/register`, form);
-            toastr.success("Register successful!", "Success");
+            toastr.success("Account created successfully!", "Success");
 
             const token = response.data.token;
             localStorage.setItem("token", token);
-            navigate("/");
+            if (setToken) setToken(token);
+
+            const role = response.data.role || "user";
+            localStorage.setItem("role", role);
+            if (setRole) setRole(role);
+
+            const userData = response.data.user || {
+                username: form.username,
+                email: form.email,
+                role: "user"
+            };
+            localStorage.setItem("user", JSON.stringify(userData));
+            if (setUser) setUser(userData);
+
+            if (userData.image) {
+                localStorage.setItem("userImage", userData.image);
+                if (setProfileImage) setProfileImage(userData.image);
+            }
+
+            if (fetchUserProfile) {
+                fetchUserProfile().catch(() => {});
+            }
+
+            navigate("/profile");
         } catch (err) {
-            const errorMessage = err.response?.data?.message || "Register failed!";
+            const errorMessage = err.response?.data?.message || (err.message === "Network Error" ? "Server is starting up, please try again in a few seconds." : "Registration failed!");
             toastr.error(errorMessage, "Error");
             if (errorMessage === "User already exists") {
                 navigate("/login");
             }
+        } finally {
+            setIsLoading(false);
+            setTakingLonger(false);
         }
     }
 
     function onRegisterSubmit(e) {
         e.preventDefault();
+        if (isLoading) return;
         registerUser();
     }
 
     return (
-        <form className="flex items-center text-sm text-gray-600 mt-16" onSubmit={onRegisterSubmit}>
-            <div className="flex flex-col gap-4 m-auto items-start p-8 py-12 min-w-80 sm:min-w-88 rounded-lg shadow-xl border border-gray-200 bg-white">
-                <p className="text-2xl font-medium m-auto">
-                    <span className="text-[#4fbf8b]">User</span> Sign Up
-                </p>
+        <form className="flex items-center text-sm text-gray-600 mt-16 px-4" onSubmit={onRegisterSubmit}>
+            <div className="flex flex-col gap-4 m-auto items-start p-8 py-10 w-full max-w-md rounded-2xl shadow-xl border border-gray-100 bg-white relative overflow-hidden">
+                {/* Top Loading Progress Line */}
+                {isLoading && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-100 overflow-hidden">
+                        <div className="h-full bg-emerald-500 animate-pulse w-full"></div>
+                    </div>
+                )}
+
+                <div className="w-full text-center">
+                    <p className="text-2xl font-semibold text-slate-800">
+                        Create an <span className="text-[#4fbf8b]">Account</span>
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">Join GreenCart today for fresh organic deliveries</p>
+                </div>
+
+                {/* Cold-start Server Notification Banner */}
+                {takingLonger && (
+                    <div className="w-full flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/80 border border-amber-200/70 text-amber-800 text-xs animate-in fade-in duration-300">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5 animate-bounce" />
+                        <div>
+                            <p className="font-semibold text-amber-900">Connecting to server...</p>
+                            <p className="text-amber-700/90 text-[11px] mt-0.5">
+                                Free backend server is waking up. Please hold on a few seconds!
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="w-full">
-                    <p>Username</p>
+                    <label className="text-xs font-medium text-slate-700">Full Name</label>
                     <input
-                        placeholder="type here"
-                        className="border border-gray-200 rounded w-full p-2 mt-1 outline-[#4fbf8b]"
+                        placeholder="John Doe"
+                        className="border border-gray-200 rounded-lg w-full p-2.5 mt-1 outline-[#4fbf8b] focus:border-[#4fbf8b] focus:ring-2 focus:ring-[#4fbf8b]/20 transition disabled:bg-slate-50 disabled:cursor-not-allowed"
                         required
                         type="text"
                         value={form.username}
                         onChange={changeHandler}
+                        disabled={isLoading}
                         name="username"
                     />
                 </div>
                 <div className="w-full">
-                    <p>Email</p>
+                    <label className="text-xs font-medium text-slate-700">Email Address</label>
                     <input
-                        placeholder="type here"
-                        className="border border-gray-200 rounded w-full p-2 mt-1 outline-[#4fbf8b]"
+                        placeholder="name@example.com"
+                        className="border border-gray-200 rounded-lg w-full p-2.5 mt-1 outline-[#4fbf8b] focus:border-[#4fbf8b] focus:ring-2 focus:ring-[#4fbf8b]/20 transition disabled:bg-slate-50 disabled:cursor-not-allowed"
                         required
                         type="email"
                         value={form.email}
                         onChange={changeHandler}
+                        disabled={isLoading}
                         name="email"
                     />
                 </div>
                 <div className="w-full">
-                    <p>Password</p>
+                    <label className="text-xs font-medium text-slate-700">Password</label>
                     <div className="relative mt-1">
                         <input
-                            placeholder="type here"
-                            className="border border-gray-200 rounded w-full p-2 pr-10 outline-[#4fbf8b]"
+                            placeholder="At least 8 chars (Uppercase, number, special)"
+                            className="border border-gray-200 rounded-lg w-full p-2.5 pr-10 outline-[#4fbf8b] focus:border-[#4fbf8b] focus:ring-2 focus:ring-[#4fbf8b]/20 transition disabled:bg-slate-50 disabled:cursor-not-allowed"
                             required
                             type={showPassword ? "text" : "password"}
                             value={form.password}
                             name="password"
+                            disabled={isLoading}
                             onChange={changeHandler}
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer focus:outline-none"
+                            disabled={isLoading}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer focus:outline-none"
                             title={showPassword ? "Hide password" : "Show password"}
                             aria-label={showPassword ? "Hide password" : "Show password"}
                         >
@@ -101,14 +174,27 @@ function Register() {
                         </button>
                     </div>
                 </div>
-                <p>
-                    Already have account? <Link to={"/login"} className="text-[#4fbf8b]">click here</Link>
-                </p>
+
+                <div className="w-full flex items-center justify-between text-xs pt-1">
+                    <span className="text-slate-500">Already have an account?</span>
+                    <Link to={"/login"} className="text-[#4fbf8b] hover:text-emerald-700 font-medium transition">
+                        Sign in
+                    </Link>
+                </div>
+
                 <button
                     type="submit"
-                    className="bg-[#4fbf8b] text-white w-full py-2 rounded-md cursor-pointer"
+                    disabled={isLoading}
+                    className="bg-[#4fbf8b] hover:bg-[#43a678] text-white w-full py-2.5 px-4 rounded-xl font-medium shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 mt-2"
                 >
-                    Create Account
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="w-4 h-4 animate-spin text-white" />
+                            <span>Creating account...</span>
+                        </>
+                    ) : (
+                        <span>Create Account</span>
+                    )}
                 </button>
             </div>
         </form>

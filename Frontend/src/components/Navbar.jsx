@@ -7,21 +7,29 @@ function Navbar() {
     const url = window.location.hostname === "localhost"
         ? "http://localhost:5174/order"
         : "https://green-cart-admin.vercel.app/AdminLogin";
-    const token = localStorage.getItem("token");
-    const { getCartCount, role, setRole } = useContext(ShopContext);
+    const context = useContext(ShopContext);
+    const token = context?.token || localStorage.getItem("token");
+    const { getCartCount, role, setRole, user, profileImage, logoutUser } = context || {};
     const navigate = useNavigate();
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
     const [search, setSearch] = useState("");
 
-    const currentRole = role || localStorage.getItem("role") || "user";
+    const currentRole = role || user?.role || localStorage.getItem("role") || "user";
     const isAdmin = currentRole === "admin" || localStorage.getItem("isAdmin") === "true";
+    const avatarUrl = profileImage || user?.image || "/images/profile.png";
 
     const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        localStorage.removeItem("isAdmin");
-        if (setRole) setRole("user");
+        if (logoutUser) {
+            logoutUser();
+        } else {
+            localStorage.removeItem("token");
+            localStorage.removeItem("role");
+            localStorage.removeItem("isAdmin");
+            localStorage.removeItem("user");
+            localStorage.removeItem("userImage");
+            if (setRole) setRole("user");
+        }
         navigate("/login");
     };
 
@@ -116,7 +124,7 @@ function Navbar() {
                         title="Shopping Cart"
                     >
                         <ShoppingBag className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
-                        {getCartCount() > 0 && (
+                        {getCartCount && getCartCount() > 0 && (
                             <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[11px] font-bold h-5 min-w-5 px-1 rounded-full flex items-center justify-center shadow-sm shadow-emerald-600/30 animate-in fade-in zoom-in duration-200">
                                 {getCartCount()}
                             </span>
@@ -126,31 +134,47 @@ function Navbar() {
                     {/* User Profile Dropdown */}
                     <div className="relative group">
                         <button
-                            onClick={() => !token && navigate("/login")}
-                            className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-100 transition-colors focus:outline-none"
+                            onClick={() => navigate(token ? "/profile" : "/login")}
+                            className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-100 transition-colors focus:outline-none"
                             aria-label="User Account"
+                            title={token ? (user?.username || "My Profile") : "Sign In"}
                         >
                             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 p-[2px] shadow-sm">
                                 <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
                                     <img
-                                        src="/images/profile.png"
-                                        alt="Profile"
+                                        src={avatarUrl}
+                                        alt={user?.username || "Profile"}
+                                        onError={(e) => { e.target.src = "/images/profile.png"; }}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
                             </div>
                         </button>
 
-                        <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 absolute right-0 top-full pt-2 w-48 z-50">
+                        <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 absolute right-0 top-full pt-2 w-56 z-50">
                             <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-2 divide-y divide-slate-100">
                                 <div className="px-3 py-2">
-                                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Account</p>
-                                    <p className="text-sm font-semibold text-slate-800 truncate">
-                                        {token ? (isAdmin ? "Store Admin" : "Verified Customer") : "Welcome Guest"}
+                                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                        {token ? (isAdmin ? "Administrator" : "GreenCart Member") : "Welcome"}
                                     </p>
+                                    <p className="text-sm font-semibold text-slate-800 truncate">
+                                        {token ? (user?.username || "My Account") : "Guest Visitor"}
+                                    </p>
+                                    {token && user?.email && (
+                                        <p className="text-xs text-slate-400 truncate mt-0.5">{user.email}</p>
+                                    )}
                                 </div>
 
                                 <div className="py-1">
+                                    {token && (
+                                        <button
+                                            onClick={() => navigate("/profile")}
+                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition text-left font-medium"
+                                        >
+                                            <User className="w-4 h-4 text-emerald-600" />
+                                            <span>My Profile</span>
+                                        </button>
+                                    )}
                                     {isAdmin && (
                                         <button
                                             onClick={() => window.open(url, "_blank")}
@@ -184,7 +208,7 @@ function Navbar() {
                                             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50 rounded-xl transition text-left font-medium"
                                         >
                                             <LogIn className="w-4 h-4" />
-                                            Sign In
+                                            Sign In / Register
                                         </button>
                                     )}
                                 </div>
@@ -255,12 +279,25 @@ function Navbar() {
                         >
                             All Products
                         </Link>
+                        {token && (
+                            <Link
+                                to="/profile"
+                                onClick={() => setMenuOpen(false)}
+                                className={`px-3 py-2 rounded-xl text-base font-medium flex items-center gap-2.5 ${
+                                    isActive("/profile") ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-slate-700 hover:bg-slate-50"
+                                }`}
+                            >
+                                <User className="w-4 h-4 text-emerald-600" />
+                                <span>My Profile</span>
+                            </Link>
+                        )}
                         <Link
                             to="/orders"
                             onClick={() => setMenuOpen(false)}
-                            className="px-3 py-2 rounded-xl text-base font-medium text-slate-700 hover:bg-slate-50"
+                            className="px-3 py-2 rounded-xl text-base font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2.5"
                         >
-                            My Orders
+                            <Package className="w-4 h-4 text-slate-400" />
+                            <span>My Orders</span>
                         </Link>
                         {isAdmin && (
                             <button

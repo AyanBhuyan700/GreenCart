@@ -2,7 +2,7 @@ import User from '../models/UserModel.js'
 import { generateToken } from '../config/GenerateToken.js'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-
+import { v2 as cloudinary } from 'cloudinary'
 
 export const registerUser = async (req, res) => {
     try {
@@ -30,7 +30,19 @@ export const registerUser = async (req, res) => {
 
                 let token = generateToken(newUser);
                 res.cookie("token", token, { httpOnly: true });
-                res.status(201).json({ message: "User created", token });
+                res.status(201).json({
+                    message: "User created",
+                    token,
+                    user: {
+                        id: newUser._id,
+                        username: newUser.username,
+                        email: newUser.email,
+                        role: newUser.role || "user",
+                        image: newUser.image || "",
+                        phone: newUser.phone || "",
+                        address: newUser.address || {}
+                    }
+                });
 
             });
         })
@@ -64,7 +76,15 @@ export const loginUser = async (req, res) => {
             message: "Login successful",
             token,
             role,
-            user: { id: user._id, username: user.username, email: user.email, role }
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role,
+                image: user.image || "",
+                phone: user.phone || "",
+                address: user.address || {}
+            }
         });
     } catch (error) {
         return res.status(500).json({ message: "Server error, please try again" });
@@ -88,6 +108,86 @@ export const adminLogin = async (req, res) => {
         }
     } catch (err) {
         return res.status(500).json({ message: "Server error, please try again" });
+    }
+};
+
+// Get current user profile
+export const getUserProfile = async (req, res) => {
+    try {
+        const userId = req.userId || req.body?.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized. Please login." });
+        }
+
+        const user = await User.findById(userId).select("-password");
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                image: user.image || "",
+                phone: user.phone || "",
+                address: user.address || {},
+                createdAt: user.createdAt
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message || "Failed to fetch profile" });
+    }
+};
+
+// Update user profile (username, phone, address, profile image)
+export const updateUserProfile = async (req, res) => {
+    try {
+        const userId = req.userId || req.body?.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized. Please login." });
+        }
+
+        const { username, phone, address, image } = req.body;
+        const updateData = {};
+
+        if (username) updateData.username = username.trim();
+        if (phone !== undefined) updateData.phone = phone.trim();
+        if (address) {
+            updateData.address = typeof address === "string" ? JSON.parse(address) : address;
+        }
+
+        if (req.file) {
+            const result = await cloudinary.uploader.upload(req.file.path, { resource_type: "image" });
+            updateData.image = result.secure_url;
+        } else if (image !== undefined) {
+            updateData.image = image;
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true }).select("-password");
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Profile updated successfully",
+            user: {
+                id: updatedUser._id,
+                username: updatedUser.username,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                image: updatedUser.image || "",
+                phone: updatedUser.phone || "",
+                address: updatedUser.address || {},
+                createdAt: updatedUser.createdAt
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message || "Failed to update profile" });
     }
 };
 

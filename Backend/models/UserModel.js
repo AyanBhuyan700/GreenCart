@@ -22,6 +22,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "user",
     },
+    image: {
+        type: String,
+        default: "",
+    },
+    phone: {
+        type: String,
+        default: "",
+    },
+    address: {
+        type: Object,
+        default: {},
+    },
 }, { minimize: false, timestamps: true });
 
 const User = mongoose.model("user", userSchema)

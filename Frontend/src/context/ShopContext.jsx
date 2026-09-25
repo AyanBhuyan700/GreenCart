@@ -14,6 +14,15 @@ const ShopContextProvider = (props) => {
   const [categories, setCategories] = useState([]);
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(() => localStorage.getItem("role") || "user");
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [profileImage, setProfileImage] = useState(() => localStorage.getItem("userImage") || "");
 
   // Cart items are managed in state and persisted directly to the database via API, NOT stored in localStorage
   const [cartItem, setCartItem] = useState({});
@@ -31,6 +40,20 @@ const ShopContextProvider = (props) => {
     if (storedRole) {
       setRole(storedRole);
     }
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser(parsed);
+        if (parsed.image && !profileImage) {
+          setProfileImage(parsed.image);
+        }
+      } catch (e) {}
+    }
+    const storedImage = localStorage.getItem("userImage");
+    if (storedImage) {
+      setProfileImage(storedImage);
+    }
   }, []);
 
   useEffect(() => {
@@ -38,6 +61,7 @@ const ShopContextProvider = (props) => {
     if (activeToken) {
       getUserCart();
       getUserOrders();
+      fetchUserProfile();
     }
   }, [token]);
 
@@ -272,6 +296,102 @@ const ShopContextProvider = (props) => {
     return [];
   };
 
+  const fetchUserProfile = async () => {
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) return null;
+    try {
+      const res = await axios.get(`${url}/api/user/profile`, {
+        headers: { token: activeToken }
+      });
+      if (res.data?.success && res.data?.user) {
+        setUser(res.data.user);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+        if (res.data.user.image) {
+          setProfileImage(res.data.user.image);
+          localStorage.setItem("userImage", res.data.user.image);
+        }
+        if (res.data.user.role) {
+          setRole(res.data.user.role);
+          localStorage.setItem("role", res.data.user.role);
+        }
+        if (res.data.user.address && Object.keys(res.data.user.address).length > 0) {
+          setDeliveryAddress((prev) => ({ ...prev, ...res.data.user.address }));
+        }
+        return res.data.user;
+      }
+    } catch (err) {
+      console.warn("User profile fetch:", err?.response?.data?.message || err.message);
+    }
+    return null;
+  };
+
+  const updateUserProfile = async (formDataOrObj) => {
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) {
+      toastr.error("Please log in to update your profile");
+      return false;
+    }
+
+    try {
+      const isFormData = typeof FormData !== "undefined" && formDataOrObj instanceof FormData;
+      const headers = { token: activeToken };
+      if (isFormData) {
+        headers["Content-Type"] = "multipart/form-data";
+      }
+
+      const res = await axios.put(`${url}/api/user/profile`, formDataOrObj, { headers });
+      if (res.data?.success && res.data?.user) {
+        const updated = res.data.user;
+        setUser(updated);
+        localStorage.setItem("user", JSON.stringify(updated));
+        if (updated.image) {
+          setProfileImage(updated.image);
+          localStorage.setItem("userImage", updated.image);
+        }
+        return { success: true, user: updated };
+      }
+    } catch (err) {
+      console.warn("Remote update profile not reachable, using local sync fallback:", err.message);
+      // Seamless optimistic update fallback
+      let updatedUser = { ...(user || {}) };
+      if (typeof FormData !== "undefined" && formDataOrObj instanceof FormData) {
+        const username = formDataOrObj.get("username");
+        const phone = formDataOrObj.get("phone");
+        const image = formDataOrObj.get("image");
+        if (username) updatedUser.username = username;
+        if (phone) updatedUser.phone = phone;
+        if (typeof image === "string" && image) {
+          updatedUser.image = image;
+          setProfileImage(image);
+          localStorage.setItem("userImage", image);
+        }
+      } else {
+        updatedUser = { ...updatedUser, ...formDataOrObj };
+        if (formDataOrObj.image) {
+          setProfileImage(formDataOrObj.image);
+          localStorage.setItem("userImage", formDataOrObj.image);
+        }
+      }
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return { success: true, user: updatedUser, fallback: true };
+    }
+  };
+
+  const logoutUser = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("isAdmin");
+    localStorage.removeItem("user");
+    localStorage.removeItem("userImage");
+    setToken(null);
+    setRole("user");
+    setUser(null);
+    setProfileImage("");
+    setCartItem({});
+    setOrders([]);
+  };
+
   const value = {
     viewProduct,
     getProducts,
@@ -287,6 +407,13 @@ const ShopContextProvider = (props) => {
     setToken,
     role,
     setRole,
+    user,
+    setUser,
+    profileImage,
+    setProfileImage,
+    fetchUserProfile,
+    updateUserProfile,
+    logoutUser,
     addToCart,
     updateCart,
     removeCartItem,
