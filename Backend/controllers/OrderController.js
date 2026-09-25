@@ -4,7 +4,11 @@ import User from '../models/UserModel.js';
 // Placing orders using COD or Online Payment
 export const placeOrder = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId;
+        const userId = req.userId || req.body?.userId;
+        if (!userId || userId === "[object Object]") {
+            return res.status(401).json({ success: false, message: "Please log in to place an order." });
+        }
+
         const { items, amount, address, paymentMethod, paymentStatus, transactionId } = req.body;
 
         if (!items || !Array.isArray(items) || items.length === 0) {
@@ -12,7 +16,7 @@ export const placeOrder = async (req, res) => {
         }
 
         const newOrder = new Order({
-            userId,
+            userId: String(userId),
             items,
             amount: Number(amount) || 0,
             address: address || {},
@@ -40,11 +44,11 @@ export const placeOrder = async (req, res) => {
 // User order history for frontend
 export const userOrders = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId;
-        if (!userId) {
-            return res.status(400).json({ success: false, message: "User ID missing" });
+        const userId = req.userId || req.body?.userId;
+        if (!userId || userId === "[object Object]") {
+            return res.status(401).json({ success: false, message: "Unauthorized. User ID missing." });
         }
-        const orders = await Order.find({ userId }).sort({ createdAt: -1 });
+        const orders = await Order.find({ userId: String(userId) }).sort({ createdAt: -1 });
         res.json({ success: true, orders });
     } catch (err) {
         console.error("User orders fetch error:", err);
