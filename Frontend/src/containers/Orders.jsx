@@ -5,14 +5,50 @@ import Footer from "../components/Footer";
 
 function Orders() {
     const navigate = useNavigate();
-    const { orders, getUserOrders } = useContext(ShopContext);
+    const context = useContext(ShopContext);
+    const token = context?.token || localStorage.getItem("token");
+    const { orders = [], getUserOrders } = context || {};
 
     useEffect(() => {
-        if (getUserOrders) {
+        if (token && getUserOrders) {
             getUserOrders();
         }
         window.scrollTo({ top: 0, behavior: "smooth" });
-    }, []);
+    }, [token]);
+
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) {
+        return (
+            <>
+                <div className="max-w-4xl mx-auto px-4 py-20 text-center min-h-[60vh] flex items-center justify-center">
+                    <div className="bg-white rounded-3xl p-10 border border-slate-200/80 shadow-xl max-w-md w-full">
+                        <div className="w-20 h-20 mx-auto rounded-full bg-emerald-50 flex items-center justify-center text-3xl mb-6">
+                            📦
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-800">Please Sign In</h2>
+                        <p className="text-sm text-slate-500 mt-2">
+                            You need to be signed in to your GreenCart account to track and view your orders.
+                        </p>
+                        <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                            <Link
+                                to="/login"
+                                className="flex-1 bg-[#4fbf8b] hover:bg-[#43a678] text-white py-3 px-6 rounded-xl font-medium transition shadow-md shadow-emerald-600/20 text-center"
+                            >
+                                Sign In
+                            </Link>
+                            <Link
+                                to="/register"
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 px-6 rounded-xl font-medium transition text-center"
+                            >
+                                Create Account
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+                <Footer />
+            </>
+        );
+    }
 
     const formatDate = (isoString) => {
         if (!isoString) return "Recently";

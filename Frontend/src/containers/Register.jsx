@@ -7,7 +7,7 @@ import { ShopContext } from "../context/ShopContext";
 import { Loader2, AlertCircle } from "lucide-react";
 
 function Register() {
-    const { url, setToken, setRole, setUser, setProfileImage, fetchUserProfile } = useContext(ShopContext);
+    const { url, setToken, setRole, setUser, setProfileImage, fetchUserProfile, setOrders } = useContext(ShopContext);
     const [form, setForm] = useState({ username: "", email: "", password: "" });
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +39,10 @@ function Register() {
         try {
             const response = await axios.post(`${url}/api/user/register`, form);
             toastr.success("Account created successfully!", "Success");
+
+            // Reset orders for new user
+            if (setOrders) setOrders([]);
+            localStorage.removeItem("orders");
 
             const token = response.data.token;
             localStorage.setItem("token", token);

@@ -62,6 +62,9 @@ const ShopContextProvider = (props) => {
       getUserCart();
       getUserOrders();
       fetchUserProfile();
+    } else {
+      setOrders([]);
+      setCartItem({});
     }
   }, [token]);
 
@@ -283,15 +286,24 @@ const ShopContextProvider = (props) => {
   // Fetch orders directly from MongoDB database
   const getUserOrders = async () => {
     const activeToken = token || localStorage.getItem("token");
-    if (!activeToken) return [];
+    if (!activeToken) {
+      setOrders([]);
+      return [];
+    }
     try {
       const res = await axios.get(`${url}/api/order/userorders`, { headers: { token: activeToken } });
-      if (res.data.success && Array.isArray(res.data.orders)) {
+      if (res.data?.success && Array.isArray(res.data.orders)) {
         setOrders(res.data.orders);
         return res.data.orders;
+      } else {
+        setOrders([]);
+        return [];
       }
     } catch (err) {
-      console.error("User orders fetch error:", err);
+      if (err.response?.status === 401) {
+        setOrders([]);
+      }
+      console.warn("User orders fetch:", err?.response?.data?.message || err.message);
     }
     return [];
   };
