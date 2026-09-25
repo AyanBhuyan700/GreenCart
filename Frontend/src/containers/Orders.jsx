@@ -61,7 +61,7 @@ function Orders() {
                         to="/allproduct"
                         className="text-sm font-medium text-[#4fbf8b] hover:underline flex items-center gap-1"
                     >
-                        <span>← Continue Shopping</span>
+                        <span> Continue Shopping</span>
                     </Link>
                 </div>
 
